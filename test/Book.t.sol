@@ -31,8 +31,15 @@ contract BookTest is Test {
         vm.deal(seller, 100 ether);
     }
 
-    function testBook() view public {
-        assert(address(book) != address(0));
+    function testConstructorInitialization() public {
+        MockERC20 newToken = new MockERC20("New Test Token", "NTST", 18);
+        Book newBook = new Book(address(newToken));
+
+        assertEq(
+            newBook.token(),
+            address(newToken),
+            "Token address should be correctly set in the constructor"
+        );
     }
 
     function testBuyOrder() public {
@@ -141,38 +148,29 @@ contract BookTest is Test {
     }
 
     function testFailBuyWithIncorrectETHAmount() public {
-        // Tentative d'achat avec un montant incorrect d'ETH
         vm.prank(buyer);
         book.buy{value: 0.5 ether}(100 * 10 ** 18, 1 ether); // Envoie 0.5 ETH au lieu de 1 ETH
     }
 
     function testRemoveBuyOrder() public {
-        // Ajoute un ordre d'achat et le supprime ensuite
         vm.prank(buyer);
         book.buy{value: 1 ether}(100 * 10 ** 18, 1 ether);
 
-        // Vérifie que l'ordre est ajouté
         assertEq(book.getBuysLength(), 1);
 
-        // Supprime l'ordre d'achat
         book.removeBuyOrder(0);
 
-        // Vérifie que l'ordre est supprimé
         assertEq(book.getBuysLength(), 0);
     }
 
     function testRemoveSellOrder() public {
-        // Ajoute un ordre de vente et le supprime ensuite
         vm.prank(seller);
         book.sell(100 * 10 ** 18, 1 ether);
 
-        // Vérifie que l'ordre est ajouté
         assertEq(book.getSellsLength(), 1);
 
-        // Supprime l'ordre de vente
         book.removeSellOrder(0);
 
-        // Vérifie que l'ordre est supprimé
         assertEq(book.getSellsLength(), 0);
     }
 
@@ -187,12 +185,140 @@ contract BookTest is Test {
     function testBuyLength() public {
         vm.prank(buyer);
         book.buy{value: 1 ether}(100 * 10 ** 18, 1 ether);
-        assertEq(book.getBuysLength(),1);
+        assertEq(book.getBuysLength(), 1);
     }
 
     function testSellLength() public {
         vm.prank(seller);
         book.sell(100 * 10 ** 18, 1 ether);
-        assertEq(book.getSellsLength(),1);
+        assertEq(book.getSellsLength(), 1);
+    }
+
+    function testBuyOrderWithExistingSell() public {
+        uint256 initialBuyerBalance = buyer.balance; // Solde ETH initial de l'acheteur
+        uint256 initialSellerBalance = seller.balance; // Solde ETH initial du vendeur
+        uint256 initialBuyerTokenBalance = token.balanceOf(buyer); // Solde en tokens initial de l'acheteur
+        vm.prank(seller);
+        book.sell(100 * 10 ** 18, 1 ether);
+
+        vm.prank(buyer);
+        book.buy{value: 1 ether}(100 * 10 ** 18, 1 ether);
+
+        assertEq(
+            book.getBuysLength(),
+            0,
+            "Buy order should be matched and removed"
+        );
+        assertEq(
+            book.getSellsLength(),
+            0,
+            "Sell order should be matched and removed"
+        );
+
+        uint256 finalBuyerBalance = buyer.balance; // Solde ETH final de l'acheteur
+        uint256 finalSellerBalance = seller.balance; // Solde ETH final du vendeur
+        uint256 finalBuyerTokenBalance = token.balanceOf(buyer); // Solde en tokens final de l'acheteur
+
+        assertEq(
+            finalBuyerTokenBalance,
+            initialBuyerTokenBalance + 100 * 10 ** 18,
+            "Buyer should receive tokens"
+        );
+        assertEq(
+            finalBuyerBalance,
+            initialBuyerBalance - 1 ether,
+            "Buyer should have 1 ether less"
+        );
+        assertEq(
+            finalSellerBalance,
+            initialSellerBalance + 1 ether,
+            "Seller should receive 1 ether"
+        );
+    }
+
+    function testSellOrderWithExistingBuy() public {
+        uint256 initialBuyerBalance = buyer.balance; // Solde ETH initial de l'acheteur
+        uint256 initialSellerBalance = seller.balance; // Solde ETH initial du vendeur
+        uint256 initialBuyerTokenBalance = token.balanceOf(buyer); // Solde en tokens initial de l'acheteur
+        vm.prank(buyer);
+        book.buy{value: 1 ether}(100 * 10 ** 18, 1 ether);
+
+        vm.prank(seller);
+        book.sell(100 * 10 ** 18, 1 ether);
+
+        assertEq(
+            book.getBuysLength(),
+            0,
+            "Buy order should be matched and removed"
+        );
+        assertEq(
+            book.getSellsLength(),
+            0,
+            "Sell order should be matched and removed"
+        );
+
+        uint256 finalBuyerBalance = buyer.balance; // Solde ETH final de l'acheteur
+        uint256 finalSellerBalance = seller.balance; // Solde ETH final du vendeur
+        uint256 finalBuyerTokenBalance = token.balanceOf(buyer); // Solde en tokens final de l'acheteur
+
+        assertEq(
+            finalBuyerTokenBalance,
+            initialBuyerTokenBalance + 100 * 10 ** 18,
+            "Buyer should receive tokens"
+        );
+        assertEq(
+            finalBuyerBalance,
+            initialBuyerBalance - 1 ether,
+            "Buyer should have 1 ether less"
+        );
+        assertEq(
+            finalSellerBalance,
+            initialSellerBalance + 1 ether,
+            "Seller should receive 1 ether"
+        );
+    }
+
+    function testRemoveSellOrderWithMultipleOrders() public {
+        vm.prank(seller);
+        book.sell(100 * 10 ** 18, 1 ether);
+        vm.prank(seller);
+        book.sell(200 * 10 ** 18, 2 ether);
+
+        assertEq(book.getSellsLength(), 2, "Sell orders length should be 2");
+
+        book.removeSellOrder(0);
+
+        assertEq(
+            book.getSellsLength(),
+            1,
+            "Sell orders length should be 1 after removal"
+        );
+
+        (address orderer, uint256 volume, uint256 amount) = book.sells(0);
+        assertEq(orderer, seller, "Orderer should be the seller");
+        assertEq(volume, 200 * 10 ** 18, "Volume should be 200 TST");
+        assertEq(amount, 2 ether, "Amount should be 2 ETH");
+    }
+
+    function testRemoveBuyOrderWithMultipleOrders() public {
+        vm.prank(buyer);
+        book.buy{value: 1 ether}(100 * 10 ** 18, 1 ether);
+        vm.prank(buyer);
+        book.buy{value: 2 ether}(200 * 10 ** 18, 2 ether);
+
+        assertEq(book.getBuysLength(), 2, "Buy orders length should be 2");
+
+        book.removeBuyOrder(0);
+
+        assertEq(
+            book.getBuysLength(),
+            1,
+            "Buy orders length should be 1 after removal"
+        );
+
+        (address orderer, uint256 volume, uint256 amount) = book.buys(0);
+        assertEq(orderer, buyer, "Orderer should be the buyer");
+        assertEq(volume, 200 * 10 ** 18, "Volume should be 200 TST");
+        assertEq(amount, 2 ether, "Amount should be 2 ETH");
     }
 }

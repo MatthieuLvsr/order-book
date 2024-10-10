@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract Book {
-    address private token;
+    address public token; // TODO: Repasser en private, public pour les tests
 
     struct Order {
         address orderer;
