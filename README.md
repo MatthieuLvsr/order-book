@@ -1,66 +1,70 @@
-## Foundry
+# Order book 📖🤌💲
+___
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+### Introduction 
 
-Foundry consists of:
+The idea of this project is to setup a simple order book where users can register sells and buys. 
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+#### Installation 🏗️
 
-## Documentation
+In order to use this project you should have [Foundry 🔨](https://book.getfoundry.sh/) on your machine.
 
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+The next step is to setup your environment as follow :
 ```
-
-### Test
-
-```shell
-$ forge test
+RPC_URL=<YOUR_RPC_URL>
+PRIVATE_KEY=<YOUR_PRIVATE_KEY>
 ```
+___
+#### Usage
 
-### Format
+There are a few command lines to use this project :
 
-```shell
-$ forge fmt
-```
+1. Build
+    ```bash
+    forge build
+    ```
+2. Test
+    ```bash
+    forge test
+    ```
+3. Coverage
+    ```bash
+    forge coverage
+    ```
+4. Improved coverage 😉
+    ```bash
+    forge coverage --report lcov
+    genhtml -o report lcov.info
+    ```
+5. Deployment
+    ```bash
+    forge script script/Deploy.s.sol:DeployBook --rpc-url $SEPOLIA_RPC_URL --broadcast --verify -vvvv --private-key $PRIVATE_KEY --legacy
+    ```
+6. Buy
+    ```bash
+    forge script script/Interact.s.sol:Buy --rpc-url $RPC_URL --broadcast --verify -vvvv --private-key $PRIVATE_KEY --legacy
+    ```
+7. Sell
+    ```bash
+    forge script script/Interact.s.sol:Sell --rpc-url $RPC_URL --broadcast --verify -vvvv --private-key $PRIVATE_KEY --legacy
+    ```
+___
+#### Details
 
-### Gas Snapshots
+***How does it works ?*** 🤔
 
-```shell
-$ forge snapshot
-```
+The idea is simple. The contract store an array of all buys and sells registered.
+When a user want to sell a volume of token for a price, the contract check if buyer registered a buy order for this, if we found a match then we process the transaction, in other way we register a new sell order.
+The same process work in the opposite way.
 
-### Anvil
+***Can I sell less token for the price of my order ?*** 😎
 
-```shell
-$ anvil
-```
+Not yet, but in the next update we would like to implement partial matching.
+___
+#### Improvement
 
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+I have a few ideas to improve this application :
+1. **Allow partial matching:** A user would probably accept to get more token for the same price if there is an opportunity. In the same way, a seller may be happy to sell less token for the same price ! 🤑
+2. **A Web3 application:** A web3 app would be easier to interact with and is way more user friendly than a simple command line prompt. 🙋
+3. **Statistics:** A bunch of stats could be easy to implement and maybe usefull for traders such as the higher and lower asks and bids and the spread of it. 📊
+___
